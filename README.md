@@ -1,1 +1,1 @@
-Framework for blind sql injection explotation. Constants already done for MSSQL
+Framework for blind boolean-based sql injections exploatation. Use it if sqlmap do shit. At moment MSSQL support.

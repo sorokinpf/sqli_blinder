@@ -1,1 +1,1 @@
-Framework for blind boolean-based sql injections explotation. Use it if sqlmap does shit. At moment MSSQL support.
+Framework for blind boolean-based sql injections exploatation. Use it if sqlmap do shit. At moment MSSQL and MySQL support.

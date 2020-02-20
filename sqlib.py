@@ -44,7 +44,7 @@ if __name__=='__main__':
 						help="where clause")
 	parser.add_argument('-i','--index',help='index of row')
 	parser.add_argument("--threads",help="number of threads",type=int,default=16)
-	parser.add_argument('--dbms',help="DBMS",choices= ['mysql','mssql','sqlite','oracle'],required=True)
+	parser.add_argument('--dbms',help="DBMS",choices= ['mysql','mssql','sqlite','oracle'])
 
 
 	args = parser.parse_args()
@@ -56,29 +56,32 @@ if __name__=='__main__':
 	else:
 		multithreaded = True
 
-	sqlib = sqli_blinder.SQLiBlinder(request_func,args.dbms,multithreaded=multithreaded,threads=args.threads)
-
 	if args.mode == 'check':
+		if args.dbms is None:
+			args.dbms = 'sqlite'
+		sqlib = sqli_blinder.SQLiBlinder(request_func,args.dbms,multithreaded=multithreaded,threads=args.threads)
 		check = sqlib.check()
 		print (check)
 		exit(0)
-	elif args.mode == 'count':
-		if args.table is None:
-			required('table',args.mode)
+
+	if args.dbms is None:
+		required('dbms',args.mode)
+	if args.table is None:
+		required('table',args.mode)
+
+	sqlib = sqli_blinder.SQLiBlinder(request_func,args.dbms,multithreaded=multithreaded,threads=args.threads)
+	
+	if args.mode == 'count':
 		print (sqlib.get_count(args.table,args.where))
 		exit(0)
 	elif args.mode == 'one':
 		if args.index is None:
 			required('index',args.mode)
-		if args.table is None:
-			required('table',args.mode)
 		if args.column is None:
 			required('column',args.mode)
 		print (sqlib.get_string(args.table,args.column,args.index,args.where))
 		exit(0)
 	elif args.mode == 'get':
-		if args.table is None:
-			required('table',args.mode)
 		if args.column is None:
 			required('column',args.mode)
 		print (sqlib.get(args.column.split(','),args.table,args.where))

@@ -1,13 +1,4 @@
-import requests
-import json
 from concurrent.futures import ThreadPoolExecutor
-import threading
-from threading import current_thread
-from tqdm import tqdm_notebook
-import re
-import os
-
-
 
 class SQLiBlinder:
 	"""Blind SQL injector"""

@@ -8,9 +8,13 @@ Support:
 - SQLite
 - Oracle
 
+Requires Python 3.x.
+
+There is no dependencies, just `pip install requests` for example `request_func`.
+
 ## Usage
 
-You could use sqlib.py console utility or do your own script by importing `sqli_blinder.SQLiBlinder`, but both cases requires you to create your own `request_func`
+You could use sqlib.py console utility or do your own script by importing `sqli_blinder.SQLiBlinder`, but both cases requires you to create your own `request_func`.
 
 ### Prepare request_func
 
@@ -78,7 +82,7 @@ There is four intended public methods:
 
 examples:
 
-```
+```python
 sqlib = SQLiBlinder(request_func,'sqlite',multithreaded=True,threads=16)
 sqlib.check() # True
 sqlib.get_count('sqlite_master') # number of rows in sqlite_master

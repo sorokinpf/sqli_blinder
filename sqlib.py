@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 
 import sqli_blinder
 import requests
@@ -12,7 +12,7 @@ def request_func(sql):
 				 "https"   : http_proxy,	
 				 "http"   : http_proxy
 				}
-	##
+	#comment this for proxy
 	proxyDict = None
 
 	burp0_url = "http://challenge01.root-me.org:80/web-serveur/ch19/?action=recherche"

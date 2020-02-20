@@ -60,6 +60,8 @@ optional arguments:
 
 Examples:
 
+`python sqlib.py check` - check `request func`
+
 `python sqlib.py count -t sqlite_master --dbms sqlite` - get count of rows in `sqlite_master` table
 
 `python sqlib.py count -t users --dbms sqlite --where "username='admin'"` - get number of rows in `sqlite_master` table

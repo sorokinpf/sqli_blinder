@@ -72,7 +72,7 @@ Examples:
 
 ### SQLiBlinder class
 
-Four public methods was intended:
+Intended public methods:
 
 - `check()` - check provided `request_func` with `1=1` and `1=0` payloads
 

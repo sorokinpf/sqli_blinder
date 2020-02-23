@@ -1,6 +1,6 @@
 # SQLi blinder
 
-Framework for blind boolean-based sql injections explotation. Use it if sqlmap do shit. 
+Framework for blind boolean-based sql injections explotation. Use it if sqlmap does shit. 
 
 Support:
 - MySQL
@@ -10,7 +10,7 @@ Support:
 
 Requires Python 3.x.
 
-There is no dependencies, just `pip install requests` for example `request_func`.
+There are no dependencies, just `pip install requests` for example `request_func`.
 
 ## Usage
 
@@ -60,11 +60,11 @@ optional arguments:
 
 Examples:
 
-`python sqlib.py check` - check `request func`
+`python sqlib.py check` - check `request_func`
 
 `python sqlib.py count -t sqlite_master --dbms sqlite` - get count of rows in `sqlite_master` table
 
-`python sqlib.py count -t users --dbms sqlite --where "username='admin'"` - get number of rows in `sqlite_master` table
+`python sqlib.py count -t users --dbms sqlite --where "username='admin'"` - get number of rows in `users` table where `username`=`admin`
 
 `python sqlib.py one -t users -c password -i 1 --dbms sqlite` - get value of `password` column in `users` table with index `1`
 
@@ -72,7 +72,7 @@ Examples:
 
 ### SQLiBlinder class
 
-There is four intended public methods:
+Four public methods was intended:
 
 - `check()` - check provided `request_func` with `1=1` and `1=0` payloads
 

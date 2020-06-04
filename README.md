@@ -56,6 +56,8 @@ optional arguments:
                         index of row
   --threads THREADS     number of threads
   --dbms {mysql,mssql,sqlite,oracle} DBMS
+  --order-by ORDER_BY   order by column name or index
+  -s, --silent          not print output during retrieving
 ```
 
 Examples:

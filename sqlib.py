@@ -44,8 +44,9 @@ if __name__=='__main__':
 						help="where clause")
 	parser.add_argument('-i','--index',help='index of row')
 	parser.add_argument("--threads",help="number of threads",type=int,default=16)
-	parser.add_argument('--dbms',help="DBMS",choices= ['mysql','mssql','sqlite','oracle'])
-
+	parser.add_argument('--dbms',help="DBMS",choices= ['mysql','mssql','sqlite','oracle','postgre'])
+	parser.add_argument("--order-by",help="order by column name or index")
+	parser.add_argument("-s", "--silent",help="not print output during retrieving",default=False, action='store_true')
 
 	args = parser.parse_args()
 	if args.threads <=0 :
@@ -79,10 +80,11 @@ if __name__=='__main__':
 			required('index',args.mode)
 		if args.column is None:
 			required('column',args.mode)
-		print (sqlib.get_string(args.table,args.column,args.index,args.where))
+		print (sqlib.get_string(args.table,args.column,args.index,args.where,args.order_by,verbose=not args.silent))
 		exit(0)
 	elif args.mode == 'get':
 		if args.column is None:
 			required('column',args.mode)
-		print (sqlib.get(args.column.split(','),args.table,args.where))
+		print (sqlib.get(args.column.split(','),args.table,args.where,
+					args.order_by,verbose=not args.silent))
 		exit(0)

@@ -68,8 +68,10 @@ class SQLiBlinder:
 				return True
 		return False
 
-	def define_string(self,table_name,column_name,index):
-		return self.string_definition%(column_name) + ' ' + self.get_from_clause(table_name,column_name,index)
+	def define_string(self,table_name,column_name,index,where=None,order_by=None):
+		if order_by is None:
+			order_by = column_name
+		return self.string_definition%(column_name) + ' ' + self.get_from_clause(table_name,index,order_by,where=where)
 
 	def get_from_clause(self,table_name,index,order_by,where=None):
 		to_where = ''
@@ -137,7 +139,10 @@ class SQLiBlinder:
 	def get_count(self,table_name,where=None):
 		s = self.define_count(table_name,where)
 		return self.binary_search(s,32,False,True)
-		
+
+	def get_integer(self,table_name,column_name,index,where=None,order_by=None):
+		s = self.define_string(table_name,column_name,index,where=where,order_by=order_by)
+		return self.binary_search(s,32,False,True)
 
 	def get_length_of_string(self,table_name,column_name,index,where=None,order_by=None):  
 		s = self.define_string_len(table_name,column_name,index,where,order_by)

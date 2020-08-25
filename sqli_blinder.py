@@ -183,3 +183,17 @@ class SQLiBlinder:
 			res.append(cs)
 		return res
 
+	def get_columns_with_types(self,table_name):
+		if self.dbms == 'postgre':
+			oid = self.get_string('pg_class','cast(oid as TEXT)',0,where="relname='%s'"%table_name,order_by='oid')
+			oid = int(oid)
+			cols = self.get(['attname','cast(atttypid as TEXT)'],'pg_attribute',where='attrelid=%d and attnum>0'%oid)
+			types = list(set([c[1] for c in cols]))
+			types_table = {}
+			for typid in types:
+				type_name = self.get_string('pg_type','typname',0,where='oid=%d'%int(typid),order_by='oid')
+				types_table[typid]=type_name
+			return [[col[0],types_table[col[1]]] for col in cols]
+		else:
+			return 'dbms not supported'
+

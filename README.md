@@ -7,10 +7,11 @@ Support:
 - MSSQL
 - SQLite
 - Oracle
+- PostgreSQL
 
 Requires Python 3.x.
 
-There are no dependencies, just `pip install requests` for example `request_func`.
+There are no dependencies, just `pip install requests` for example `request_func`, or `pip install aiohttp` for async example.
 
 ## Usage
 
@@ -33,7 +34,19 @@ SQLiBlinder(request_func,dbms).check()
 
 If you want to use sqlib.py - replace `request_func` with your own.
 
+### Async version of request_func
+
+Limitation of standart version is that it works sequentially. Multithreading is applied only for string chars search. When string is found, it use single thread to determine length of next string and etc.
+
+Async allows make more task simultaniously, so it is supposed to be faster.
+
+But it require you to make async `request_func`. You could use one of python HTTP async clients such as `aiohttp` or [make requests async](https://stackoverflow.com/questions/22190403/how-could-i-use-requests-in-asyncio).
+
+You can find example of async `request_func` in sqlib_async.py.
+
 ### Run sqlib.py
+
+sqlib_async.py use same syntax.
 
 ```
 usage: sqlib.py [-h] [-t TABLE] [-c COLUMN] [-w WHERE] [-i INDEX]

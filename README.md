@@ -50,7 +50,7 @@ sqlib_async.py use same syntax.
 
 ```
 usage: sqlib.py [-h] [-t TABLE] [-c COLUMN] [-w WHERE] [-i INDEX]
-                [--threads THREADS] --dbms {mysql,mssql,sqlite,oracle}
+                [--threads THREADS] --dbms {mysql,mssql,sqlite,oracle,postgre}
                 {check,count,one,get}
 
 positional arguments:

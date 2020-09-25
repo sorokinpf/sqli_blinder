@@ -75,15 +75,20 @@ optional arguments:
 
 Examples:
 
-`python sqlib.py check` - check `request_func`
+Check `request_func`:
+`python sqlib.py check` 
 
-`python sqlib.py count -t sqlite_master --dbms sqlite` - get count of rows in `sqlite_master` table (like `SELECT count(*) FROM sqlite_master`)
+Get count of rows in `sqlite_master` table (like `SELECT count(*) FROM sqlite_master`):
+`python sqlib.py count -t sqlite_master --dbms sqlite`
 
-`python sqlib.py count -t users --dbms sqlite --where "username='admin'"` - get number of rows in `users` table where `username`=`admin` (like`SELECT count(*) FROM users WHERE username='admin'`)
+Get number of rows in `users` table where `username`=`admin` (like`SELECT count(*) FROM users WHERE username='admin'`):
+`python sqlib.py count -t users --dbms sqlite --where "username='admin'"`
 
-`python sqlib.py one -t users -c password -i 1 --dbms sqlite` - get value of `password` column in `users` table with index `1` (like `SELECT password FROM users offset 1 limit 1`)
+Get value of `password` column in `users` table with index `1` (like `SELECT password FROM users offset 1 limit 1`)
+`python sqlib.py one -t users -c password -i 1 --dbms sqlite`
 
-`python sqlib.py get -t users -c username,password --dbms sqlite` - get all `username` and `password` from `users` table (like `SELECT username,password FROM users`)
+Get all `username` and `password` from `users` table (like `SELECT username,password FROM users`)
+`python sqlib.py get -t users -c username,password --dbms sqlite` 
 
 ### SQLiBlinder class
 

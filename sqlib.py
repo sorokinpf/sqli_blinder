@@ -80,7 +80,7 @@ if __name__=='__main__':
 			required('index',args.mode)
 		if args.column is None:
 			required('column',args.mode)
-		print (sqlib.get_string(args.table,args.column,args.index,args.where,args.order_by,verbose=not args.silent))
+		print (sqlib.get_string(args.table,args.column,int(args.index),args.where,args.order_by,verbose=not args.silent))
 		exit(0)
 	elif args.mode == 'get':
 		if args.column is None:

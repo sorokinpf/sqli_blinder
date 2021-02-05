@@ -26,7 +26,7 @@ class SQLiBlinder:
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
 			self.tables_query = ['information_schema.tables','table_name',"table_schema <> 'information_schema'"]
-			self.columns_query = ['infomation_schema.columns','column_name','table_name = {table_name}']
+			self.columns_query = ['information_schema.columns','column_name',"table_name = '{table_name}'"]
 
 		#MSSQL
 		if dbms == 'mssql':
@@ -45,7 +45,8 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT hex(SUBSTR(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
-			
+			self.tables_query = ['sqlite_master','sql',None]
+
 		#oracle
 		if dbms == 'oracle':
 			self.base_from_clause = 'FROM (SELECT a.*, ROWNUM rn FROM {table_name} a {where} ORDER BY a.{order_by}) WHERE rn={row_num}'
@@ -205,9 +206,18 @@ class SQLiBlinder:
 			return 'dbms not supported'
 
 	def get_tables(self):
-		if self.tables_query is not None:
+		if hasattr(self,'tables_query'):
 			table,column,where = self.tables_query
 
 			return self.get([column],table,where=where)
 		else:
-			print ('%s --tables is not maintained' % self.dbms)
+			print ('%s tables request is not maintained' % self.dbms)
+
+	def get_columns(self,table_name):
+		if hasattr(self,'columns_query'):
+			table,column,where = self.columns_query
+
+			columns = self.get([column],table,where=where.format(table_name=table_name))
+			return [x[0] for x in columns]
+		else:
+			print ('%s columns request is not maintained' % self.dbms)

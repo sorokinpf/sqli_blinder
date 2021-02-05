@@ -35,8 +35,8 @@ def required(arg,mode):
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument("mode",help="mode - one of ['check','count','one','get','tables']",
-								choices= ['check','count','one','get','tables'])
+	parser.add_argument("mode",help="mode - one of ['check','count','one','get','tables','columns','dump']",
+								choices= ['check','count','one','get','tables','columns','dump'])
 	parser.add_argument("-t","--table",
 						help = "table nmae");
 	parser.add_argument("-c","--column",
@@ -68,12 +68,14 @@ if __name__=='__main__':
 
 	sqlib = sqli_blinder.SQLiBlinder(request_func,args.dbms,multithreaded=multithreaded,threads=args.threads)
 
+
+	if args.dbms is None:
+		required('dbms',args.mode)
+
 	if args.mode == 'tables':
 		print (sqlib.get_tables())
 		exit(0)
 
-	if args.dbms is None:
-		required('dbms',args.mode)
 	if args.table is None:
 		required('table',args.mode)
 
@@ -93,3 +95,16 @@ if __name__=='__main__':
 		print (sqlib.get(args.column.split(','),args.table,args.where,
 					args.order_by,verbose=not args.silent))
 		exit(0)
+	elif args.mode == 'columns':
+		print (sqlib.get_columns(args.table))
+		exit(0)
+	elif args.mode == 'dump':
+		columns = sqlib.get_columns(args.table)
+		if columns is None:
+			print ('No columns extracted, exiting')
+			exit (-1)
+		print ('columns: ',columns)
+		print (sqlib.get(columns,args.table,args.where,
+						 args.order_by,verbose = not args.silent))
+		exit(0)
+

@@ -35,7 +35,8 @@ def required(arg,mode):
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument("mode",help="mode - one of ['check','count','one','get']",choices= ['check','count','one','get'])
+	parser.add_argument("mode",help="mode - one of ['check','count','one','get','tables']",
+								choices= ['check','count','one','get','tables'])
 	parser.add_argument("-t","--table",
 						help = "table nmae");
 	parser.add_argument("-c","--column",
@@ -65,13 +66,17 @@ if __name__=='__main__':
 		print (check)
 		exit(0)
 
+	sqlib = sqli_blinder.SQLiBlinder(request_func,args.dbms,multithreaded=multithreaded,threads=args.threads)
+
+	if args.mode == 'tables':
+		print (sqlib.get_tables())
+		exit(0)
+
 	if args.dbms is None:
 		required('dbms',args.mode)
 	if args.table is None:
 		required('table',args.mode)
 
-	sqlib = sqli_blinder.SQLiBlinder(request_func,args.dbms,multithreaded=multithreaded,threads=args.threads)
-	
 	if args.mode == 'count':
 		print (sqlib.get_count(args.table,args.where))
 		exit(0)

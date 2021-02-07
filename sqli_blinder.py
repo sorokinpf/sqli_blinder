@@ -64,7 +64,9 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
+			self.schemata_query = ['nspname','pg_catalog.pg_namespace',None]
 			self.tables_query = ['c.relname','pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace',"c.relkind IN ('r','') AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND pg_catalog.pg_table_is_visible(c.oid)"]
+			self.tables_schema_query = ['c.relname', 'pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace',"c.relkind IN ('r','m','v','') AND n.nspname='%s'"] # remove v and m if you don't want see views
 			self.columns_query = ["attname","pg_attribute","attrelid=(SELECT oid FROM pg_class WHERE relname='{table_name}') AND attnum>0"]
 
 	def check(self):
@@ -207,14 +209,28 @@ class SQLiBlinder:
 		else:
 			return 'dbms not supported'
 
-	def get_tables(self):
-		if hasattr(self,'tables_query'):
-			column,table,where = self.tables_query
-
+	def get_schemata(self):
+		if hasattr(self,'schemata_query'):
+			column,table,where = self.schemata_query
 			return self.get([column],table,where=where)
 		else:
-			print ('%s tables request is not maintained' % self.dbms)
+			print ('%s schemata request is not supported' % self.dbms)
 
+	def get_tables(self,schema):
+		if schema is None:
+			if hasattr(self,'tables_query'):
+				column,table,where = self.tables_query
+
+				return self.get([column],table,where=where)
+			else:
+				print ('%s tables request is not supported' % self.dbms)
+		else:
+			if hasattr(self,'tables_schema_query'):
+				column,table,where = self.tables_schema_query
+				where = where % schema
+				return self.get([column],table,where=where)
+			else:
+				print ('%s tables request is not supported' % self.dbms)
 	def get_columns(self,table_name):
 		if hasattr(self,'columns_query'):
 			column,table,where = self.columns_query
@@ -222,4 +238,4 @@ class SQLiBlinder:
 			columns = self.get([column],table,where=where.format(table_name=table_name))
 			return [x[0] for x in columns]
 		else:
-			print ('%s columns request is not maintained' % self.dbms)
+			print ('%s columns request is not supported' % self.dbms)

@@ -37,6 +37,8 @@ if __name__=='__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("mode",help="mode - one of ['check','count','one','get','tables','columns','dump']",
 								choices= ['check','count','one','get','tables','columns','dump'])
+	parser.add_argument("-s","--schema",
+						help = "schema name");
 	parser.add_argument("-t","--table",
 						help = "table nmae");
 	parser.add_argument("-c","--column", nargs='+',
@@ -73,8 +75,12 @@ if __name__=='__main__':
 	if args.dbms is None:
 		required('dbms',args.mode)
 
+	if args.mode == 'schemata':
+		print (sqlib.get_schemata())
+		exit(0)
+
 	if args.mode == 'tables':
-		print (sqlib.get_tables())
+		print (sqlib.get_tables(args.schema))
 		exit(0)
 
 	if args.table is None:

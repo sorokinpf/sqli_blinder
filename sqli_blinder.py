@@ -65,6 +65,7 @@ class SQLiBlinder:
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
 			self.tables_query = ['c.relname','pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace',"c.relkind IN ('r','') AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND pg_catalog.pg_table_is_visible(c.oid)"]
+			self.columns_query = ["attname","pg_attribute","attrelid=(SELECT oid FROM pg_class WHERE relname='{table_name}') AND attnum>0"]
 
 	def check(self):
 		if self.request_func('1=1') == True:
@@ -216,7 +217,7 @@ class SQLiBlinder:
 
 	def get_columns(self,table_name):
 		if hasattr(self,'columns_query'):
-			table,column,where = self.columns_query
+			column,table,where = self.columns_query
 
 			columns = self.get([column],table,where=where.format(table_name=table_name))
 			return [x[0] for x in columns]

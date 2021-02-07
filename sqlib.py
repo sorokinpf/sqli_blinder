@@ -39,8 +39,8 @@ if __name__=='__main__':
 								choices= ['check','count','one','get','tables','columns','dump'])
 	parser.add_argument("-t","--table",
 						help = "table nmae");
-	parser.add_argument("-c","--column",
-						help="column names. For get mode could by comma separated array of columns")
+	parser.add_argument("-c","--column", nargs='+',
+						help="column names. One or more, separated by space (ex, -c username password)\n expressions are acceptable (ex, -c substring(name,1,3) 'cast(id as TEXT)'")
 	parser.add_argument("-w", "--where", 
 						help="where clause")
 	parser.add_argument('-i','--index',help='index of row')
@@ -50,6 +50,7 @@ if __name__=='__main__':
 	parser.add_argument("-s", "--silent",help="not print output during retrieving",default=False, action='store_true')
 
 	args = parser.parse_args()
+
 	if args.threads <=0 :
 		print ('threads > 0')
 		exit(-1)
@@ -92,7 +93,7 @@ if __name__=='__main__':
 	elif args.mode == 'get':
 		if args.column is None:
 			required('column',args.mode)
-		print (sqlib.get(args.column.split(','),args.table,args.where,
+		print (sqlib.get(args.column,args.table,args.where,
 					args.order_by,verbose=not args.silent))
 		exit(0)
 	elif args.mode == 'columns':

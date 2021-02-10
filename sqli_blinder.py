@@ -69,6 +69,8 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTR(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=1
+			self.tables_query = ['TABLE_NAME','USER_TABLES',None]
+			self.columns_query = ['column_name','all_tab_columns',"table_name = UPPER('{table_name}')"]
 
 		#postgre
 		if dbms == 'postgre':

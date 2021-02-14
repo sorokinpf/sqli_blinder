@@ -6,6 +6,7 @@ import argparse
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 def request_func(sql):
 	"""this function must return True for sql=`1=1` and False for sql=`1=0`"""

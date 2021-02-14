@@ -39,8 +39,6 @@ def required(arg, mode):
 	exit(-1)
 
 
-if __name__ == "__main__":
-	parser = argparse.ArgumentParser()
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("mode",help="mode - one of ['check','count','one','get','schemata','tables','columns','dump']",

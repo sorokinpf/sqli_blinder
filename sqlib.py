@@ -41,29 +41,28 @@ def required(arg, mode):
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("mode", help="mode - one of [\"check\",\"count\",\"one\",\"get\",\"tables\",\"columns\",\"dump\"]",
-						choices=["check", "count", "one", "get", "tables", "columns", "dump"])
-	parser.add_argument("-s", "--schema",
-						help="schema name")
-	parser.add_argument("-t", "--table",
-						help="table nmae")
-	parser.add_argument("-c", "--column", nargs="+",
-						help="column names. One or more, separated by space (ex, -c username password)\n expressions are acceptable (ex, -c substring(name,1,3) \"cast(id as TEXT)\"")
-	parser.add_argument("-w", "--where",
+if __name__=='__main__':
+	parser = argparse.ArgumentParser()
+	parser.add_argument("mode",help="mode - one of ['check','count','one','get','schemata','tables','columns','dump']",
+								choices= ['check','count','one','get','schemata','tables','columns','dump'])
+	parser.add_argument("-s","--schema",
+						help = "schema name");
+	parser.add_argument("-t","--table",
+						help = "table name");
+	parser.add_argument("-c","--column", nargs='+',
+						help="column names. For get mode could by comma separated array of columns")
+	parser.add_argument("-w", "--where", 
 						help="where clause")
-	parser.add_argument("-i", "--index", help="index of row")
-	parser.add_argument(
-		"--threads", help="number of threads", type=int, default=16)
-	parser.add_argument("--dbms", help="DBMS",
-						choices=["mysql", "mssql", "sqlite", "oracle", "postgre"])
-	parser.add_argument("--order-by", help="order by column name or index")
-	parser.add_argument("-v", "--verbose", help="disable logging debug",
-						default=False, action="store_true")
+	parser.add_argument('-i','--index',help='index of row')
+	parser.add_argument("--threads",help="number of threads",type=int,default=16)
+	parser.add_argument('--dbms',help="DBMS",choices= ['mysql','mssql','sqlite','oracle','postgre'])
+	parser.add_argument("--order-by",help="order by column name or index")
+	parser.add_argument("--silent",help="not print output during retrieving",default=False, action='store_true')
 
-	args, _ = parser.parse_known_args()
+	args = parser.parse_args()
 
-	if args.threads <= 0:
-		logging.error("threads > 0")
+	if args.threads <=0 :
+		print ('threads > 0')
 		exit(-1)
 	if args.threads == 1:
 		multithreaded = False
@@ -91,6 +90,7 @@ if __name__ == "__main__":
 
 	if args.mode == "tables":
 		logging.info(sqlib.get_tables(args.schema))
+
 		exit(0)
 
 	if args.table is None:
@@ -128,3 +128,16 @@ if __name__ == "__main__":
 		logging.info(sqlib.get(columns, args.table, args.where,
 						args.order_by))
 		exit(0)
+	elif args.mode == 'columns':
+		print (sqlib.get_columns(args.table))
+		exit(0)
+	elif args.mode == 'dump':
+		columns = sqlib.get_columns(args.table)
+		if columns is None:
+			print ('No columns extracted, exiting')
+			exit (-1)
+		print ('columns: ',columns)
+		print (sqlib.get(columns,args.table,args.where,
+						 args.order_by,verbose = not args.silent))
+		exit(0)
+

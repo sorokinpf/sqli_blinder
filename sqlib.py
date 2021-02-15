@@ -35,8 +35,8 @@ def required(arg,mode):
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument("mode",help="mode - one of ['check','count','one','get','tables','columns','dump']",
-								choices= ['check','count','one','get','tables','columns','dump'])
+	parser.add_argument("mode",help="mode - one of ['check','count','one','get','schemata','tables','columns','dump']",
+								choices= ['check','count','one','get','schemata','tables','columns','dump'])
 	parser.add_argument("-s","--schema",
 						help = "schema name");
 	parser.add_argument("-t","--table",

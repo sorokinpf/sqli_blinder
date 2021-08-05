@@ -35,6 +35,8 @@ class SQLiBlinder:
 		return f"{self.dbms.string_definition.format(column_name)} {self.get_from_clause(table_name, index, order_by, where)}" 
 
 	def get_from_clause(self, table_name, index, order_by, where=None):
+		if table_name is None:
+			return ""
 		to_where = ""
 		if where != None:
 			to_where = f"WHERE {where}" 

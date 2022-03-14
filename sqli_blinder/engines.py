@@ -1,6 +1,7 @@
 
 class SQLEngine:
     def __init__(self):
+
         self.convert_to_text="CAST({} AS TEXT)"
         self.string_definition = "SELECT {}"
         self.count_definition = "SELECT count(*) FROM (SELECT * FROM {} {})T"
@@ -15,7 +16,7 @@ class SQLEngine:
 class MySQL(SQLEngine):
 
     def __init__(self):
-        super(SQLEngine,self).__init__()
+        SQLEngine.__init__(self)
 
         self.base_from_clause = "FROM {table_name} {where} ORDER BY {order_by} limit 1 offset {row_num}"
         self.string_len_definition = "SELECT length({})"
@@ -32,6 +33,8 @@ class MySQL(SQLEngine):
             "table_name", "information_schema.tables", "table_schema='{schema_name}'"]
         self.columns_query = [
             "column_name", "information_schema.columns", "table_name = '{table_name}'"]
+
+        self.convert_to_text="CAST({} AS CHAR(500))"
 
 
 class MSSQL(SQLEngine):

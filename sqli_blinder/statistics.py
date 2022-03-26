@@ -26,6 +26,10 @@ class Statistics():
 		return self._stats[table_name][column_name]['values']
 
 	def get_chars(self,table_name,column_name):
+		if table_name not in self._stats:
+			return []
+		if column_name not in self._stats[table_name]:
+			return []
 		return self._stats[table_name][column_name]['chars']
 
 	def get_tables(self):

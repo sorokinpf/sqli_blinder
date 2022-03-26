@@ -61,7 +61,14 @@ if __name__ == "__main__":
 	parser.add_argument("--order-by", help="order by column name or index")
 	parser.add_argument("-v", "--verbose", help="disable logging debug",
 						default=False, action="store_true")
-
+	parser.add_argument("--disable-position-opt", help="Disable char-in-position optimisation. For example, GUID always have same symbol dash in known position. If statistics shows that symbol is always same in same position, then check this char first.",default=False, action="store_true")
+	parser.add_argument("--disable-alphabet-opt", help="Disable alphabet auto create optimisation. Idea of optimisation is auto build charset for search based on already found characters and narrow the scope of search",default=False, action="store_true")
+	parser.add_argument("--disable-huffman-opt", help="Disable huffman tree optimisation. Idea of optimisation is to make search based on huffman-tree; huffman tree is built based on already found selective distribution",default=False, action="store_true")
+'''
+	`char_in_position_opt` - do statistics analyze of chars in same position. For example, GUID always have same symbol dash in known position. If statistics shows that symbol always in same position, then check this char first.
+		 `alphabet_autocreate_opt` - auto build charset for search based on already found characters
+		 `huffman_tree_opt` - make huffman-tree search; huffman tree is built based on selective distribution
+'''
 	args, _ = parser.parse_known_args()
 
 	if args.threads <= 0:
@@ -72,11 +79,16 @@ if __name__ == "__main__":
 	else:
 		multithreaded = True
 
+
+
 	if args.mode == "check":
 		if args.dbms is None:
 			args.dbms = "sqlite"
 		sqlib = sqli_blinder.SQLiBlinder(
-			request_func, args.dbms, multithreaded=multithreaded, threads=args.threads)
+			request_func, args.dbms, multithreaded=multithreaded, threads=args.threads,
+			char_in_position_opt=not args.disable_position_opt, 
+			alphabet_autocreate_opt=not args.disable_alphabet_opt,
+			huffman_tree_opt=not args.disable_huffmant_opt)
 		check = sqlib.check()
 		logging.info(check)
 		exit(0)

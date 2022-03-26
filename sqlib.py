@@ -42,7 +42,8 @@ def required(arg, mode):
 
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser()
+	description = "Framework for fast and convenient blind SQL injection explotation"
+	parser = argparse.ArgumentParser(description=description)
 	parser.add_argument("mode",help="mode - one of ['check','count','one','get','schemata','tables','columns','dump']",
 								choices= ['check','count','one','get','schemata','tables','columns','dump'])
 	parser.add_argument("-s","--schema",
@@ -64,11 +65,7 @@ if __name__ == "__main__":
 	parser.add_argument("--disable-position-opt", help="Disable char-in-position optimisation. For example, GUID always have same symbol dash in known position. If statistics shows that symbol is always same in same position, then check this char first.",default=False, action="store_true")
 	parser.add_argument("--disable-alphabet-opt", help="Disable alphabet auto create optimisation. Idea of optimisation is auto build charset for search based on already found characters and narrow the scope of search",default=False, action="store_true")
 	parser.add_argument("--disable-huffman-opt", help="Disable huffman tree optimisation. Idea of optimisation is to make search based on huffman-tree; huffman tree is built based on already found selective distribution",default=False, action="store_true")
-'''
-	`char_in_position_opt` - do statistics analyze of chars in same position. For example, GUID always have same symbol dash in known position. If statistics shows that symbol always in same position, then check this char first.
-		 `alphabet_autocreate_opt` - auto build charset for search based on already found characters
-		 `huffman_tree_opt` - make huffman-tree search; huffman tree is built based on selective distribution
-'''
+
 	args, _ = parser.parse_known_args()
 
 	if args.threads <= 0:
@@ -78,8 +75,6 @@ if __name__ == "__main__":
 		multithreaded = False
 	else:
 		multithreaded = True
-
-
 
 	if args.mode == "check":
 		if args.dbms is None:
